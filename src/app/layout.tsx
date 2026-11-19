@@ -77,7 +77,7 @@ export const metadata: Metadata = {
   },
 };
 
-const THEME_PREHYDRATION_SCRIPT = `(function(){try{var t=localStorage.getItem('netwatch-theme');if(t==='obsidian'||t==='luminous'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();`;
+const THEME_PREHYDRATION_SCRIPT = `(function(){try{var k='netwatch-theme';var t=localStorage.getItem(k);if(t!=='obsidian'&&t!=='luminous'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'obsidian':'luminous';localStorage.setItem(k,t);}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
 
 export default function RootLayout({
   children,

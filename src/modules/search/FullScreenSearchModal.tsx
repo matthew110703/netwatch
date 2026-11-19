@@ -189,11 +189,12 @@ export const FullScreenSearchModal: React.FC<FullScreenSearchModalProps> = ({
                 onClick={() => {
                   setQuery('');
                   setHighlightedIndex(-1);
+                  inputRef.current?.focus();
                 }}
-                className="p-1.5 rounded-full text-[var(--rd-color-on-surface-variant)] hover:text-[var(--rd-color-on-surface)] hover:bg-[var(--rd-color-surface-container-high)] transition-all cursor-pointer shrink-0"
+                className="px-2.5 py-1 rounded-md text-xs font-semibold text-[var(--rd-color-on-surface-variant)] hover:text-[var(--rd-color-on-surface)] bg-[var(--rd-color-surface-container-high)]/70 hover:bg-[var(--rd-color-surface-container-highest)] transition-all cursor-pointer shrink-0"
                 aria-label="Clear search input"
               >
-                <X className="w-5 h-5" />
+                Clear
               </button>
             )}
           </div>

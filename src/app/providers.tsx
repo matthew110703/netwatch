@@ -22,6 +22,46 @@ function RouteHistoryTracker() {
   return null;
 }
 
+const THEME_STORAGE_KEY = 'netwatch-theme';
+
+function SystemThemeSynchronizer() {
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const applyTheme = (nextTheme: 'obsidian' | 'luminous') => {
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+      } catch {
+        // Ignore storage restrictions
+      }
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      window.dispatchEvent(new CustomEvent(`rd-theme-change:${THEME_STORAGE_KEY}`));
+    };
+
+    try {
+      const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved !== 'obsidian' && saved !== 'luminous') {
+        applyTheme(mediaQuery.matches ? 'obsidian' : 'luminous');
+      }
+    } catch {
+      // Ignore storage errors
+    }
+
+    const handleSystemChange = (event: MediaQueryListEvent) => {
+      applyTheme(event.matches ? 'obsidian' : 'luminous');
+    };
+
+    mediaQuery.addEventListener('change', handleSystemChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleSystemChange);
+    };
+  }, []);
+
+  return null;
+}
+
 export function NetwatchProviders({ children }: { children: React.ReactNode }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [previewItem, setPreviewItem] = useState<MediaCardModel | null>(null);
@@ -96,7 +136,8 @@ export function NetwatchProviders({ children }: { children: React.ReactNode }) {
   }, [isSearchOpen]);
 
   return (
-    <ThemeProvider defaultTheme="luminous" applyToRoot storageKey="netwatch-theme">
+    <ThemeProvider defaultTheme="luminous" applyToRoot storageKey={THEME_STORAGE_KEY}>
+      <SystemThemeSynchronizer />
       <WatchlistProvider>
         <Suspense fallback={null}>
           <RouteHistoryTracker />

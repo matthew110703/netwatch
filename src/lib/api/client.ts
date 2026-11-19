@@ -1,7 +1,11 @@
 import { ApiResponse } from '../types';
 
-const BRAINDANCE_BASE_URL =
-  process.env.BRAINDANCE_API_URL || 'http://localhost:8001';
+const BRAINDANCE_BASE_URL = (
+  process.env.BRAINDANCE_API_URL || 'http://localhost:8001'
+)
+  .trim()
+  .replace(/\/+$/, '')
+  .replace(/\/api\/v1$/i, '');
 const API_VERSION_PREFIX = '/api/v1';
 const BRAINDANCE_API_KEY =
   process.env.BRAINDANCE_API_KEY || 'bd_live_dev_secret_key_2026';
