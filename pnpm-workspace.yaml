@@ -18,4 +18,4 @@ minimumReleaseAgeExclude:
   - '@ripperdoc-chrome77/tokens@1.4.0 || 1.5.0'
   - '@ripperdoc-chrome77/utils@1.3.0 || 1.4.0'
   - '@ripperdoc-chrome77/components@1.5.0'
-  - '@ripperdoc-chrome77/player@1.0.0'
+  - '@ripperdoc-chrome77/player@1.0.0 || 1.1.0'

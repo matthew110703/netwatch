@@ -12,8 +12,8 @@ importers:
         specifier: ^1.5.0
         version: 1.5.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@ripperdoc-chrome77/player':
-        specifier: ^1.0.0
-        version: 1.0.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^1.1.0
+        version: 1.1.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@ripperdoc-chrome77/themes':
         specifier: ^1.4.0
         version: 1.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -490,8 +490,8 @@ packages:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
 
-  '@ripperdoc-chrome77/player@1.0.0':
-    resolution: {integrity: sha512-zx/fdlzHi5HOQCblSYah6k0D4fZPc05uIOVehTMQ54Z/bf1IlMWkFaZifMXUv6VMFbnEerWg0jwIzCWpDfXx/g==}
+  '@ripperdoc-chrome77/player@1.1.0':
+    resolution: {integrity: sha512-W9+PX8XC7IUgf+sxh9DCUeTfy0Ah8q2GciSXhSh+/E+YGeLayOF5CEP0JBJtpHEZuvABPGCeLAuNpWvrv7+YNg==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -2525,7 +2525,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@ripperdoc-chrome77/player@1.0.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@ripperdoc-chrome77/player@1.1.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@ripperdoc-chrome77/themes': 1.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@ripperdoc-chrome77/tokens': 1.5.0
