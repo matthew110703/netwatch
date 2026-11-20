@@ -22,7 +22,7 @@ export function buildServerStreamUrl({
   brandColor = '#b0c6ff',
   font = 'Inter',
 }: BuildServerUrlOptions): string {
-  // Default and retired IDs resolve cleanly to sandbox-safe VidRift Prime
+  // Embed relay URL — VidRift gates playback on popup/ad capability
   const basePath =
     type === 'tv'
       ? `https://embed.vidrift.net/embed/tv/${id}/${season}/${episode}`
