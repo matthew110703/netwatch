@@ -24,10 +24,7 @@ import {
   setStreamPrefs,
   type StreamPlaybackPrefs,
 } from '@/lib/stream-preferences';
-import {
-  resolveDirectStreamFromEmbed,
-  shouldProxyHls,
-} from '@/lib/vidrift-stream';
+import { shouldProxyHls } from '@/lib/vidrift-stream';
 import { buildServerStreamUrl, isNativeServer } from './player.helper';
 
 export type StreamingServerWithEmbed = StreamingServerOption & { embedUrl?: string };
@@ -379,7 +376,8 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
     return () => controller.abort();
   }, [mediaId, mediaType, isTv, season, episode, episodeKey]);
 
-  // Resolve direct HLS (ad-free). On deployed hosts, browser scrape first; local uses API first.
+  // Resolve direct HLS via same-origin /api/stream (Braindance scrape on deploy).
+  // Browser fetch to embed.vidrift.net always sends Origin and gets Cloudflare 403.
   useEffect(() => {
     if (!isNative) return;
 
@@ -418,62 +416,47 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
       });
     };
 
-    const resolveFromClient = async () => {
-      const clientResolved = await resolveDirectStreamFromEmbed({
-        type: mediaType,
-        id,
-        season,
-        episode,
-        proxy,
-        signal: controller.signal,
-      });
-      applySuccess({
-        streamUrl: clientResolved.streamUrl,
-        subtitles: clientResolved.subtitles,
-        maxHeight: clientResolved.maxHeight,
-      });
-    };
-
-    const resolveFromApi = async () => {
-      const res = await fetch(`/api/stream/${mediaType}/${id}${query}`, {
-        signal: controller.signal,
-      });
-      const data = await res.json();
-      if (!data?.success || !data.streamUrl) {
-        throw new Error(data?.error || 'Failed to extract direct stream');
-      }
-      applySuccess({
-        streamUrl: data.streamUrl,
-        subtitles: data.subtitles,
-        maxHeight: data.maxHeight ?? null,
-      });
-    };
-
     const streamPromise = (async () => {
       try {
-        if (proxy) {
-          await resolveFromClient();
-        } else {
-          await resolveFromApi();
+        const res = await fetch(`/api/stream/${mediaType}/${id}${query}`, {
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        // #region agent log
+        fetch('http://127.0.0.1:7382/ingest/9e6e0e4d-e4aa-4ee8-a0d7-f373f87445e6', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '7b6556' },
+          body: JSON.stringify({
+            sessionId: '7b6556',
+            runId: 'post-fix',
+            hypothesisId: 'A',
+            location: 'EmbeddedPlayer.tsx:resolveDirect',
+            message: 'Direct resolve API response',
+            data: {
+              ok: res.ok,
+              status: res.status,
+              success: Boolean(data?.success),
+              hasStream: Boolean(data?.streamUrl),
+              error: data?.error ?? null,
+              proxied: data?.proxied ?? proxy,
+              maxHeight: data?.maxHeight ?? null,
+              source: data?.source ?? null,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        if (!data?.success || !data.streamUrl) {
+          throw new Error(data?.error || 'Failed to extract direct stream');
         }
-      } catch (primaryErr) {
+        applySuccess({
+          streamUrl: data.streamUrl,
+          subtitles: data.subtitles,
+          maxHeight: data.maxHeight ?? null,
+        });
+      } catch (err) {
         if (controller.signal.aborted) return;
-        try {
-          if (proxy) {
-            await resolveFromApi();
-          } else {
-            await resolveFromClient();
-          }
-        } catch (fallbackErr) {
-          if (controller.signal.aborted) return;
-          const message =
-            fallbackErr instanceof Error
-              ? fallbackErr.message
-              : primaryErr instanceof Error
-                ? primaryErr.message
-                : 'Failed to extract direct stream';
-          applyError(message);
-        }
+        applyError(err instanceof Error ? err.message : 'Failed to extract direct stream');
       }
     })();
 
