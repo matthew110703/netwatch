@@ -150,14 +150,12 @@ export async function GET(
     const preferBraindance = Boolean(process.env.VERCEL) || proxy;
 
     let resolved: ResolvedDirectStream | null = null;
-    let via: 'local' | 'braindance' | null = null;
     let localStatus: number | null = null;
 
     if (!preferBraindance) {
       const local = await resolveViaLocalScrape(type, numId, seasonNum, episodeNum);
       if (local.ok) {
         resolved = local.resolved;
-        via = 'local';
       } else {
         localStatus = local.status;
       }
@@ -166,33 +164,11 @@ export async function GET(
     if (!resolved) {
       try {
         resolved = await resolveViaBraindance(type, numId, seasonNum, episodeNum);
-        via = 'braindance';
       } catch (braindanceErr) {
-        // #region agent log
-        fetch('http://127.0.0.1:7382/ingest/9e6e0e4d-e4aa-4ee8-a0d7-f373f87445e6', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '7b6556' },
-          body: JSON.stringify({
-            sessionId: '7b6556',
-            runId: 'pre-fix',
-            hypothesisId: 'C',
-            location: 'api/stream/route.ts:braindance-fail',
-            message: 'Braindance direct resolve failed',
-            data: {
-              preferBraindance,
-              localStatus,
-              error: braindanceErr instanceof Error ? braindanceErr.message : String(braindanceErr),
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-
         if (!preferBraindance) {
           const local = await resolveViaLocalScrape(type, numId, seasonNum, episodeNum);
           if (local.ok) {
             resolved = local.resolved;
-            via = 'local';
           } else {
             localStatus = local.status;
           }
@@ -215,29 +191,6 @@ export async function GET(
         }
       }
     }
-
-    // #region agent log
-    fetch('http://127.0.0.1:7382/ingest/9e6e0e4d-e4aa-4ee8-a0d7-f373f87445e6', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '7b6556' },
-      body: JSON.stringify({
-        sessionId: '7b6556',
-        runId: 'pre-fix',
-        hypothesisId: 'C',
-        location: 'api/stream/route.ts:success',
-        message: 'Direct stream resolved',
-        data: {
-          via,
-          preferBraindance,
-          proxy,
-          source: resolved.source,
-          maxHeight: resolved.maxHeight,
-          hasStream: Boolean(resolved.streamUrl),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
 
     return NextResponse.json(mapResolvedForClient(resolved, proxy), { headers: noStore });
   } catch (error: unknown) {

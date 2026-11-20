@@ -24,7 +24,6 @@ import {
   setStreamPrefs,
   type StreamPlaybackPrefs,
 } from '@/lib/stream-preferences';
-import { shouldProxyHls } from '@/lib/vidrift-stream';
 import { buildServerStreamUrl, isNativeServer } from './player.helper';
 
 export type StreamingServerWithEmbed = StreamingServerOption & { embedUrl?: string };
@@ -383,9 +382,6 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
 
     const controller = new AbortController();
     const query = isTv ? `?season=${season}&episode=${episode}` : '';
-    const proxy = shouldProxyHls(
-      typeof window !== 'undefined' ? window.location.hostname : 'localhost'
-    );
 
     const applySuccess = (payload: {
       streamUrl: string;
@@ -422,30 +418,6 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
           signal: controller.signal,
         });
         const data = await res.json();
-        // #region agent log
-        fetch('http://127.0.0.1:7382/ingest/9e6e0e4d-e4aa-4ee8-a0d7-f373f87445e6', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '7b6556' },
-          body: JSON.stringify({
-            sessionId: '7b6556',
-            runId: 'post-fix',
-            hypothesisId: 'A',
-            location: 'EmbeddedPlayer.tsx:resolveDirect',
-            message: 'Direct resolve API response',
-            data: {
-              ok: res.ok,
-              status: res.status,
-              success: Boolean(data?.success),
-              hasStream: Boolean(data?.streamUrl),
-              error: data?.error ?? null,
-              proxied: data?.proxied ?? proxy,
-              maxHeight: data?.maxHeight ?? null,
-              source: data?.source ?? null,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         if (!data?.success || !data.streamUrl) {
           throw new Error(data?.error || 'Failed to extract direct stream');
         }

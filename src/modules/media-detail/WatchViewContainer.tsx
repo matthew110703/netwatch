@@ -243,8 +243,6 @@ export const WatchViewContainer: React.FC<WatchViewContainerProps> = ({
               onSeasonChange={handleSeasonChange}
             />
           )}
-
-          <CastSection cast={cast} />
         </div>
 
         <div className="space-y-6 min-w-0">
@@ -275,6 +273,8 @@ export const WatchViewContainer: React.FC<WatchViewContainerProps> = ({
           </div>
         </div>
       </div>
+
+      <CastSection cast={cast} />
 
       {filteredRecommendations.length > 0 && (
         <div className="pt-8 border-t border-[var(--rd-color-outline-variant)]/30">

@@ -164,7 +164,16 @@ export async function apiFetch<T>(
       } catch {
         errorBody = await res.text();
       }
-      throw new ApiClientError(res.status, res.statusText, endpoint, errorBody);
+      const bodyMessage =
+        errorBody &&
+        typeof errorBody === 'object' &&
+        'message' in errorBody &&
+        typeof (errorBody as { message: unknown }).message === 'string'
+          ? (errorBody as { message: string }).message
+          : typeof errorBody === 'string'
+            ? errorBody
+            : res.statusText || 'Request failed';
+      throw new ApiClientError(res.status, bodyMessage, endpoint, errorBody);
     }
 
     const json = (await res.json()) as ApiResponse<T>;

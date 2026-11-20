@@ -68,8 +68,8 @@ export const CastSection: React.FC<CastSectionProps> = ({
   };
 
   return (
-    <section className="space-y-4 min-w-0">
-      <div className="flex items-center justify-between gap-3">
+    <section className="w-full min-w-0 space-y-4">
+      <div className="flex w-full items-center justify-between gap-3">
         <h2
           className={
             isDetail
@@ -112,7 +112,7 @@ export const CastSection: React.FC<CastSectionProps> = ({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onPointerLeave={handlePointerUp}
-        className="flex gap-5 overflow-x-auto pb-3 scroll-smooth select-none cursor-grab active:cursor-grabbing no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="flex w-full gap-5 overflow-x-auto px-1 pb-3 scroll-smooth select-none cursor-grab active:cursor-grabbing no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {cast.map((member) => (
           <div
