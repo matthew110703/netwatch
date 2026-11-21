@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { HomeFeed } from '@/components/HomeFeed';
 import { getHomeFeedData } from '@/services/catalog.service';
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/seo';
+import { resolveHomeRegion } from '@/lib/region';
 import { strings } from './strings';
 
 export const metadata: Metadata = {
@@ -27,7 +28,8 @@ export const metadata: Metadata = {
 export const revalidate = 120; // 2 minutes cache revalidation
 
 export default async function HomePage() {
-  const feedData = await getHomeFeedData();
+  const region = await resolveHomeRegion();
+  const feedData = await getHomeFeedData(region);
 
   return (
     <>

@@ -1,0 +1,62 @@
+import { cookies, headers } from 'next/headers';
+
+export const REGION_COOKIE = 'netwatch_region';
+export const DEFAULT_REGION = 'US';
+const REGION_CODE = /^[A-Z]{2}$/;
+const INVALID_GEO = new Set(['XX', 'T1']);
+
+export const CURATED_REGIONS = [
+  { code: 'US', label: 'United States' },
+  { code: 'IN', label: 'India' },
+  { code: 'GB', label: 'United Kingdom' },
+  { code: 'CA', label: 'Canada' },
+  { code: 'AU', label: 'Australia' },
+  { code: 'KR', label: 'South Korea' },
+  { code: 'JP', label: 'Japan' },
+  { code: 'DE', label: 'Germany' },
+  { code: 'FR', label: 'France' },
+  { code: 'ES', label: 'Spain' },
+  { code: 'MX', label: 'Mexico' },
+  { code: 'BR', label: 'Brazil' },
+] as const;
+
+export type CuratedRegionCode = (typeof CURATED_REGIONS)[number]['code'];
+
+export function normalizeRegionCode(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const upper = raw.trim().toUpperCase();
+  if (INVALID_GEO.has(upper)) return null;
+  return REGION_CODE.test(upper) ? upper : null;
+}
+
+export function getRegionLabel(code: string): string {
+  const match = CURATED_REGIONS.find((r) => r.code === code);
+  return match?.label ?? code;
+}
+
+export function isCuratedRegionCode(code: string): code is CuratedRegionCode {
+  return CURATED_REGIONS.some((r) => r.code === code);
+}
+
+/**
+ * Resolves the active chart region: cookie override, then geo headers, then US.
+ */
+export async function resolveHomeRegion(): Promise<string> {
+  const cookieStore = await cookies();
+  const fromCookie = normalizeRegionCode(cookieStore.get(REGION_COOKIE)?.value);
+  if (fromCookie) return fromCookie;
+
+  const hdrs = await headers();
+  const geoHeaderNames = [
+    'cf-ipcountry',
+    'x-vercel-ip-country',
+    'cloudfront-viewer-country',
+  ] as const;
+
+  for (const name of geoHeaderNames) {
+    const fromHeader = normalizeRegionCode(hdrs.get(name));
+    if (fromHeader) return fromHeader;
+  }
+
+  return DEFAULT_REGION;
+}

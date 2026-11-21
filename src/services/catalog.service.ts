@@ -3,9 +3,31 @@ import {
   moviesApi,
   tvApi,
   genresApi,
+  discoverApi,
 } from '@/lib/api';
+import {
+  LANGUAGE_RAIL_CONFIG,
+  REGIONAL_CHART_DISCOVER_QUERY,
+} from '@/lib/catalog.constants';
+import { DEFAULT_REGION, getRegionLabel } from '@/lib/region';
 import { mapTmdbMovieToCard, mapTmdbTvToCard } from '@/lib/tmdb-image';
-import { MediaCardModel, TMDBGenre, TMDBVideo } from '@/lib/types';
+import {
+  MediaCardModel,
+  TMDBGenre,
+  TMDBMovie,
+  TMDBPaginatedResponse,
+  TMDBTvShow,
+  TMDBVideo,
+} from '@/lib/types';
+import { strings } from '@/app/strings';
+
+export interface LanguageRailData {
+  code: string;
+  label: string;
+  title: string;
+  subtitle: string;
+  items: MediaCardModel[];
+}
 
 export interface HomeFeedData {
   billboardItem: MediaCardModel | null;
@@ -13,8 +35,30 @@ export interface HomeFeedData {
   topPicksItems: MediaCardModel[];
   popularTvItems: MediaCardModel[];
   topRatedItems: MediaCardModel[];
+  region: string;
+  regionLabel: string;
+  regionTopMovies: MediaCardModel[];
+  regionTopTv: MediaCardModel[];
+  languageRails: LanguageRailData[];
   genres: TMDBGenre[];
   isLive: boolean;
+}
+
+function emptyHomeFeedData(region: string = DEFAULT_REGION): HomeFeedData {
+  return {
+    billboardItem: null,
+    trendingItems: [],
+    topPicksItems: [],
+    popularTvItems: [],
+    topRatedItems: [],
+    region,
+    regionLabel: getRegionLabel(region),
+    regionTopMovies: [],
+    regionTopTv: [],
+    languageRails: [],
+    genres: [{ id: 0, name: 'All Genres' }],
+    isLive: false,
+  };
 }
 
 function pickYoutubeTrailerKey(videos?: TMDBVideo[]): string | undefined {
@@ -49,16 +93,43 @@ async function resolveFirstTrailer(
   return null;
 }
 
-export async function getHomeFeedData(): Promise<HomeFeedData> {
+export async function getHomeFeedData(region: string): Promise<HomeFeedData> {
+  const regionCode = region.trim().toUpperCase() || DEFAULT_REGION;
+  const regionLabel = getRegionLabel(regionCode);
+
   try {
-    const [trendingRes, nowPlayingRes, popularTvRes, topRatedRes, genresRes] =
-      await Promise.allSettled([
-        trendingApi.getTrendingMovies('day'),
-        moviesApi.getNowPlaying(),
-        tvApi.getPopular(),
-        moviesApi.getTopRated(),
-        genresApi.getMovieGenres(),
-      ]);
+    const regionalDiscoverQuery = {
+      watch_region: regionCode,
+      ...REGIONAL_CHART_DISCOVER_QUERY,
+    };
+
+    const settled = await Promise.allSettled([
+      trendingApi.getTrendingMovies('day'),
+      moviesApi.getNowPlaying(),
+      tvApi.getPopular(),
+      moviesApi.getTopRated(),
+      genresApi.getMovieGenres(),
+      discoverApi.discoverMovies(regionalDiscoverQuery),
+      discoverApi.discoverTv(regionalDiscoverQuery),
+      ...LANGUAGE_RAIL_CONFIG.map((lang) =>
+        discoverApi.discoverMovies({
+          with_original_language: lang.code,
+          sort_by: 'popularity.desc',
+          'vote_count.gte': 50,
+        })
+      ),
+    ]);
+
+    const trendingRes = settled[0];
+    const nowPlayingRes = settled[1];
+    const popularTvRes = settled[2];
+    const topRatedRes = settled[3];
+    const genresRes = settled[4];
+    const regionMoviesRes = settled[5];
+    const regionTvRes = settled[6];
+    const languageResList = settled.slice(7) as PromiseSettledResult<
+      TMDBPaginatedResponse<TMDBMovie>
+    >[];
 
     const trendingRaw =
       trendingRes.status === 'fulfilled' && trendingRes.value.results
@@ -91,6 +162,37 @@ export async function getHomeFeedData(): Promise<HomeFeedData> {
     const topRatedItems: MediaCardModel[] = topRatedRaw
       .slice(0, 10)
       .map((movie) => mapTmdbMovieToCard(movie));
+
+    const regionTopMovies: MediaCardModel[] =
+      regionMoviesRes.status === 'fulfilled' && regionMoviesRes.value.results
+        ? regionMoviesRes.value.results
+            .slice(0, 10)
+            .map((movie: TMDBMovie, index: number) => mapTmdbMovieToCard(movie, index + 1))
+        : [];
+
+    const regionTopTv: MediaCardModel[] =
+      regionTvRes.status === 'fulfilled' && regionTvRes.value.results
+        ? regionTvRes.value.results
+            .slice(0, 10)
+            .map((tv: TMDBTvShow, index: number) => mapTmdbTvToCard(tv, index + 1))
+        : [];
+
+    const languageRails: LanguageRailData[] = LANGUAGE_RAIL_CONFIG.map((lang, index) => {
+      const res = languageResList[index];
+      const copy =
+        strings.languageRails[lang.code as keyof typeof strings.languageRails];
+      const items =
+        res?.status === 'fulfilled' && res.value.results
+          ? res.value.results.slice(0, 10).map((movie: TMDBMovie) => mapTmdbMovieToCard(movie))
+          : [];
+      return {
+        code: lang.code,
+        label: lang.label,
+        title: copy?.title ?? `${lang.label} picks`,
+        subtitle: copy?.subtitle ?? '',
+        items,
+      };
+    }).filter((rail) => rail.items.length > 0);
 
     const genresRaw =
       genresRes.status === 'fulfilled' && Array.isArray(genresRes.value)
@@ -128,20 +230,17 @@ export async function getHomeFeedData(): Promise<HomeFeedData> {
       topPicksItems,
       popularTvItems,
       topRatedItems,
+      region: regionCode,
+      regionLabel,
+      regionTopMovies,
+      regionTopTv,
+      languageRails,
       genres,
       isLive: trendingRes.status === 'fulfilled',
     };
   } catch (error) {
     console.error('[Catalog Service] Error loading home feed:', error);
-    return {
-      billboardItem: null,
-      trendingItems: [],
-      topPicksItems: [],
-      popularTvItems: [],
-      topRatedItems: [],
-      genres: [{ id: 0, name: 'All Genres' }],
-      isLive: false,
-    };
+    return emptyHomeFeedData(regionCode);
   }
 }
 

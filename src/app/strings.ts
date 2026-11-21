@@ -23,7 +23,39 @@ export const strings = {
     popularTvSubtitle: 'Compelling narratives and multi-season sagas',
     topRatedTitle: 'Critically Acclaimed Masterpieces',
     topRatedSubtitle: 'Universal acclaim with pristine preservation',
+    regionChartsHeading: 'Charts in your region',
+    regionChartsSubtitle:
+      'Popular titles available to stream in the country you selected',
+    regionTopMoviesTitle: 'Top 10 Movies in {country}',
+    regionTopMoviesSubtitle: 'Ranked by catalog popularity in this region',
+    regionTopTvTitle: 'Top 10 TV in {country}',
+    regionTopTvSubtitle: 'Series trending in regional streaming catalogs',
     seeAll: 'See all',
+  },
+  regionPicker: {
+    label: 'Chart region',
+  },
+  languageRails: {
+    hi: {
+      title: 'Popular Hindi Cinema',
+      subtitle: 'Original-language films audiences are discovering now',
+    },
+    ko: {
+      title: 'Korean Hits',
+      subtitle: 'K-drama and film favorites from Korea',
+    },
+    ja: {
+      title: 'Japanese Spotlight',
+      subtitle: 'Anime, drama, and cinema from Japan',
+    },
+    es: {
+      title: 'Spanish Language Picks',
+      subtitle: 'Films and series in Spanish',
+    },
+    fr: {
+      title: 'French Cinema & Series',
+      subtitle: 'Francophone storytelling on demand',
+    },
   },
   filter: {
     allGenres: 'All Genres',

@@ -6,6 +6,12 @@ export interface DiscoverQuery {
   language?: string;
   with_genres?: string | number;
   sort_by?: string;
+  region?: string;
+  watch_region?: string;
+  with_original_language?: string;
+  with_watch_monetization_types?: string;
+  'vote_count.gte'?: number;
+  'vote_count.lte'?: number;
 }
 
 export const discoverApi = {

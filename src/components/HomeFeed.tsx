@@ -13,7 +13,13 @@ import { getClientDeviceId } from '@/lib/device';
 import { useWatchlist } from '@/context/WatchlistContext';
 import { HeroBanner } from '@/components/HeroBanner';
 import { GenreFilterSection } from '@/components/GenreFilterSection';
+import { RegionPicker } from '@/components/RegionPicker';
+import { LanguageRailData } from '@/services/catalog.service';
 import { strings } from '@/app/strings';
+
+function railTitle(template: string, country: string): string {
+  return template.replace('{country}', country);
+}
 
 interface HomeFeedProps {
   billboardItem: MediaCardModel | null;
@@ -21,6 +27,11 @@ interface HomeFeedProps {
   topPicksItems: MediaCardModel[];
   popularTvItems: MediaCardModel[];
   topRatedItems: MediaCardModel[];
+  region: string;
+  regionLabel: string;
+  regionTopMovies: MediaCardModel[];
+  regionTopTv: MediaCardModel[];
+  languageRails: LanguageRailData[];
   genres: TMDBGenre[];
   isLive: boolean;
 }
@@ -31,6 +42,11 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   topPicksItems,
   popularTvItems,
   topRatedItems,
+  region,
+  regionLabel,
+  regionTopMovies,
+  regionTopTv,
+  languageRails,
   genres,
   isLive,
 }) => {
@@ -171,6 +187,68 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
             </MediaRail>
           )}
 
+          <section className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--rd-color-on-surface)]">
+                  {strings.rails.regionChartsHeading}
+                </h2>
+                <p className="text-sm text-[var(--rd-color-on-surface-variant)] mt-1">
+                  {strings.rails.regionChartsSubtitle}
+                </p>
+              </div>
+              <RegionPicker value={region} />
+            </div>
+
+              {regionTopMovies.length > 0 && (
+                <MediaRail
+                  title={railTitle(strings.rails.regionTopMoviesTitle, regionLabel)}
+                  subtitle={strings.rails.regionTopMoviesSubtitle}
+                >
+                  {regionTopMovies.map((item, index) => (
+                    <MediaCard
+                      key={`region-movie-${item.id}-${index}`}
+                      id={item.id}
+                      title={item.title}
+                      posterUrl={item.imageUrl}
+                      backdropUrl={item.backdropUrl}
+                      rating={item.rating}
+                      year={item.year}
+                      variant="ranked"
+                      rank={item.rank || index + 1}
+                      badge={item.badge}
+                      href={`/${item.type}/${item.id}`}
+                      onClick={() => handleCardClick(item)}
+                    />
+                  ))}
+                </MediaRail>
+              )}
+
+              {regionTopTv.length > 0 && (
+                <MediaRail
+                  title={railTitle(strings.rails.regionTopTvTitle, regionLabel)}
+                  subtitle={strings.rails.regionTopTvSubtitle}
+                >
+                  {regionTopTv.map((item, index) => (
+                    <MediaCard
+                      key={`region-tv-${item.id}-${index}`}
+                      id={item.id}
+                      title={item.title}
+                      posterUrl={item.imageUrl}
+                      backdropUrl={item.backdropUrl}
+                      rating={item.rating}
+                      year={item.year}
+                      variant="ranked"
+                      rank={item.rank || index + 1}
+                      badge={item.badge}
+                      href={`/${item.type}/${item.id}`}
+                      onClick={() => handleCardClick(item)}
+                    />
+                  ))}
+                </MediaRail>
+              )}
+          </section>
+
           {/* Rail 2: Top Picks / Now Playing */}
           {topPicksItems.length > 0 && (
             <MediaRail
@@ -220,6 +298,26 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
               ))}
             </MediaRail>
           )}
+
+          {languageRails.map((rail) => (
+            <MediaRail key={`lang-${rail.code}`} title={rail.title} subtitle={rail.subtitle}>
+              {rail.items.map((item, index) => (
+                <MediaCard
+                  key={`lang-${rail.code}-${item.id}-${index}`}
+                  id={item.id}
+                  title={item.title}
+                  posterUrl={item.imageUrl}
+                  backdropUrl={item.backdropUrl}
+                  rating={item.rating}
+                  year={item.year}
+                  variant="poster"
+                  badge={item.badge}
+                  href={`/${item.type}/${item.id}`}
+                  onClick={() => handleCardClick(item)}
+                />
+              ))}
+            </MediaRail>
+          ))}
 
           {/* Rail 4: Critically Acclaimed Masterpieces */}
           {topRatedItems.length > 0 && (
