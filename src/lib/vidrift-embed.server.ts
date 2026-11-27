@@ -26,18 +26,17 @@ export function buildWatchReferer(origin: string, type: 'movie' | 'tv', id: numb
   return `${base}/watch/${type}/${id}`;
 }
 
-export function fetchVidriftEmbedHtml(
-  embedUrl: string,
-  referer: string
+export type EmbedFetchResult = { status: number; data: string; via: string };
+
+function fetchRawHtmlHttps(
+  url: string,
+  headers: Record<string, string>
 ): Promise<{ status: number; data: string }> {
   return new Promise((resolve, reject) => {
     const req = https.get(
-      embedUrl,
+      url,
       {
-        headers: {
-          ...IFRAME_NAV_HEADERS,
-          Referer: referer,
-        },
+        headers,
         timeout: 15000,
       },
       (res) => {
@@ -54,6 +53,81 @@ export function fetchVidriftEmbedHtml(
     });
     req.on('error', (err) => reject(err));
   });
+}
+
+async function fetchRawHtmlFollow(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs = 12000
+): Promise<{ status: number; data: string }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      headers,
+      redirect: 'follow',
+      signal: controller.signal,
+    });
+    const data = await res.text();
+    return { status: res.status, data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchViaTranslateRelay(embedUrl: string): Promise<{ status: number; data: string }> {
+  const relayUrl =
+    'https://translate.google.com/translate?sl=auto&tl=en&u=' + encodeURIComponent(embedUrl);
+  return fetchRawHtmlFollow(relayUrl, { ...IFRAME_NAV_HEADERS }, 15000);
+}
+
+function embedHtmlLooksValid(html: string): boolean {
+  return /embedMeta|playbackToken|\/api\/orion\//.test(html);
+}
+
+/**
+ * VidRift blocks many datacenter IPs (e.g. Vercel). Residential/dev often works on https.get;
+ * fetch() from Node may still get 403. Tries several strategies before giving up.
+ */
+export async function fetchVidriftEmbedHtml(embedUrl: string, referer: string): Promise<EmbedFetchResult> {
+  const iframeHeaders = { ...IFRAME_NAV_HEADERS, Referer: referer };
+
+  try {
+    const legacy = await fetchRawHtmlHttps(embedUrl, iframeHeaders);
+    if (legacy.status === 200 && embedHtmlLooksValid(legacy.data)) {
+      return { ...legacy, via: 'https.get' };
+    }
+    if (legacy.status === 200 && legacy.data.length > 1000) {
+      return { ...legacy, via: 'https.get' };
+    }
+    if (legacy.status !== 200) {
+      const relayed = await fetchViaTranslateRelay(embedUrl);
+      if (relayed.status === 200 && embedHtmlLooksValid(relayed.data)) {
+        return { ...relayed, via: 'translate-relay' };
+      }
+      return { ...legacy, via: 'https.get' };
+    }
+  } catch {
+    // continue to fetch / relay
+  }
+
+  try {
+    const viaFetch = await fetchRawHtmlFollow(embedUrl, iframeHeaders);
+    if (viaFetch.status === 200 && embedHtmlLooksValid(viaFetch.data)) {
+      return { ...viaFetch, via: 'fetch' };
+    }
+    if (viaFetch.status !== 200) {
+      const relayed = await fetchViaTranslateRelay(embedUrl);
+      if (relayed.status === 200 && embedHtmlLooksValid(relayed.data)) {
+        return { ...relayed, via: 'translate-relay' };
+      }
+    }
+  } catch {
+    // fall through
+  }
+
+  const relayed = await fetchViaTranslateRelay(embedUrl);
+  return { ...relayed, via: 'translate-relay' };
 }
 
 export function parseEmbedMetaFromHtml(
@@ -74,11 +148,7 @@ export function parseEmbedMetaFromHtml(
     const token = typeof meta.playbackToken === 'string' ? meta.playbackToken.trim() : '';
     if (!token) return null;
     const parentHost =
-      typeof meta.parent === 'string' && meta.parent.trim()
-        ? meta.parent.trim()
-        : fallback.type === 'movie'
-          ? ''
-          : '';
+      typeof meta.parent === 'string' && meta.parent.trim() ? meta.parent.trim() : '';
     const tmdbId = Number(meta.tmdbId ?? fallback.tmdbId);
     if (!Number.isInteger(tmdbId) || tmdbId <= 0) return null;
     const type: 'movie' | 'tv' = meta.type === 'tv' ? 'tv' : 'movie';

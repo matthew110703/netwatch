@@ -12,6 +12,8 @@ import {
   fetchVidriftEmbedHtml,
   parseEmbedMetaFromHtml,
 } from '@/lib/vidrift-embed.server';
+import { resolvePlaybackViaBraindance } from '@/lib/vidrift-playback.braindance';
+import { ApiClientError } from '@/lib/api/client';
 
 function mapResolvedForClient(
   resolved: ResolvedDirectStream,
@@ -77,59 +79,44 @@ export async function GET(
     const referer = buildWatchReferer(origin, type, numId);
     const proxy = shouldProxyHls(hostname) || Boolean(process.env.VERCEL);
 
-    const embedUrl = buildVidriftEmbedUrl(type, numId, seasonNum, episodeNum);
-    const { status, data: html } = await fetchVidriftEmbedHtml(embedUrl, referer);
+    const parentHost = hostname || 'stream-netwatch.vercel.app';
 
-    if (status !== 200) {
-      return NextResponse.json(
-        { success: false, error: `Upstream error: ${status}` },
-        { status: status === 404 ? 404 : 502, headers: noStore }
-      );
-    }
+    const resolveFromEmbedHtml = (html: string) => {
+      const subtitles = extractSubtitleTracks(html);
+      const candidates = extractStreamCandidates(html);
 
-    const subtitles = extractSubtitleTracks(html);
-    const candidates = extractStreamCandidates(html);
+      if (candidates.length > 0) {
+        const best = candidates[0];
+        const resolved: ResolvedDirectStream = {
+          streamUrl: best.url,
+          alternateStreams: candidates.slice(1).map((c) => c.url),
+          source: best.source,
+          maxHeight: best.maxHeight ?? null,
+          subtitles,
+        };
+        return mapResolvedForClient(resolved, proxy);
+      }
 
-    if (candidates.length > 0) {
-      const best = candidates[0];
-      const resolved: ResolvedDirectStream = {
-        streamUrl: best.url,
-        alternateStreams: candidates.slice(1).map((c) => c.url),
-        source: best.source,
-        maxHeight: best.maxHeight ?? null,
-        subtitles,
-      };
-      return NextResponse.json(mapResolvedForClient(resolved, proxy), { headers: noStore });
-    }
+      const session = parseEmbedMetaFromHtml(html, {
+        type,
+        tmdbId: numId,
+        season: seasonNum,
+        episode: episodeNum,
+      });
 
-    const session = parseEmbedMetaFromHtml(html, {
-      type,
-      tmdbId: numId,
-      season: seasonNum,
-      episode: episodeNum,
-    });
+      if (!session) {
+        return null;
+      }
 
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'No playback session in upstream embed' },
-        { status: 404, headers: noStore }
-      );
-    }
+      const sourcePath =
+        type === 'tv' ? `tv/${numId}/${seasonNum}/${episodeNum}` : `movie/${numId}`;
 
-    const parentHost = session.parentHost || hostname || 'stream-netwatch.vercel.app';
-
-    const sourcePath =
-      type === 'tv'
-        ? `tv/${numId}/${seasonNum}/${episodeNum}`
-        : `movie/${numId}`;
-
-    return NextResponse.json(
-      {
+      return {
         success: true,
         resolution: 'vidrift-session',
         session: {
           playbackToken: session.playbackToken,
-          parentHost,
+          parentHost: session.parentHost || parentHost,
           sourcePath,
           type,
           tmdbId: numId,
@@ -138,8 +125,92 @@ export async function GET(
         },
         subtitles,
         proxied: proxy,
-      },
-      { headers: noStore }
+      };
+    };
+
+    const preferBraindanceFirst = Boolean(process.env.VERCEL);
+    let lastUpstreamStatus: number | null = null;
+
+    const tryBraindance = async () => {
+      const playback = await resolvePlaybackViaBraindance({
+        type,
+        tmdbId: numId,
+        season: seasonNum,
+        episode: episodeNum,
+        referer,
+        parentHost,
+      });
+
+      if (playback.resolution === 'direct') {
+        const { resolution: _resolution, ...resolved } = playback;
+        return mapResolvedForClient(resolved, proxy);
+      }
+
+      return {
+        success: true,
+        resolution: 'vidrift-session',
+        session: {
+          ...playback.session,
+          parentHost: playback.session.parentHost || parentHost,
+        },
+        subtitles: playback.subtitles,
+        proxied: proxy,
+      };
+    };
+
+    const tryLocalEmbed = async () => {
+      const embedUrl = buildVidriftEmbedUrl(type, numId, seasonNum, episodeNum);
+      const { status, data: html } = await fetchVidriftEmbedHtml(embedUrl, referer);
+      lastUpstreamStatus = status;
+      if (status !== 200) return null;
+      return resolveFromEmbedHtml(html);
+    };
+
+    if (preferBraindanceFirst) {
+      try {
+        const payload = await tryBraindance();
+        return NextResponse.json(payload, { headers: noStore });
+      } catch (braindanceErr) {
+        const localPayload = await tryLocalEmbed();
+        if (localPayload) {
+          return NextResponse.json(localPayload, { headers: noStore });
+        }
+        const message =
+          braindanceErr instanceof ApiClientError
+            ? braindanceErr.message
+            : braindanceErr instanceof Error
+              ? braindanceErr.message
+              : 'Stream resolution failed';
+        return NextResponse.json(
+          {
+            success: false,
+            error: lastUpstreamStatus ? `Upstream error: ${lastUpstreamStatus}` : message,
+          },
+          { status: 502, headers: noStore }
+        );
+      }
+    }
+
+    const localPayload = await tryLocalEmbed();
+    if (localPayload) {
+      return NextResponse.json(localPayload, { headers: noStore });
+    }
+
+    if (lastUpstreamStatus !== 200) {
+      try {
+        const payload = await tryBraindance();
+        return NextResponse.json(payload, { headers: noStore });
+      } catch {
+        return NextResponse.json(
+          { success: false, error: `Upstream error: ${lastUpstreamStatus ?? 403}` },
+          { status: lastUpstreamStatus === 404 ? 404 : 502, headers: noStore }
+        );
+      }
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'No playback session in upstream embed' },
+      { status: 404, headers: noStore }
     );
   } catch (error: unknown) {
     const rawMessage = error instanceof Error ? error.message : 'Stream resolution failed';
