@@ -466,7 +466,18 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
         });
       } catch (err) {
         if (controller.signal.aborted) return;
-        applyError(err instanceof Error ? err.message : 'Failed to extract direct stream');
+        const message = err instanceof Error ? err.message : 'Failed to extract direct stream';
+        // VidRift blocks datacenter scrapes (Vercel/Render → 403). The embed iframe
+        // still loads in the visitor's browser, so play that instead of a dead error.
+        if (fallbackRelayServerId && !isNativeServer(fallbackRelayServerId)) {
+          setAutoFallbackNotice({
+            key: nativeKey,
+            serverName: fallbackRelayServer?.name || 'embed',
+          });
+          setActiveServerId(fallbackRelayServerId);
+          return;
+        }
+        applyError(message);
       }
     })();
 
@@ -509,7 +520,19 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
     void streamPromise;
 
     return () => controller.abort();
-  }, [isNative, mediaType, id, mediaId, season, episode, isTv, nativeKey, nativeRetryToken]);
+  }, [
+    isNative,
+    mediaType,
+    id,
+    mediaId,
+    season,
+    episode,
+    isTv,
+    nativeKey,
+    nativeRetryToken,
+    fallbackRelayServerId,
+    fallbackRelayServer?.name,
+  ]);
 
   // Iframe postMessage exit handler (origin-verified)
   useEffect(() => {
