@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { TvFeed } from '@/components/TvFeed';
+import { TvPageClient } from '@/components/TvPageClient';
 import { JsonLd } from '@/components/JsonLd';
 import { getTvFeedData } from '@/services/catalog.service';
 import { buildBreadcrumbJsonLd, buildItemListJsonLd, SITE_NAME } from '@/lib/seo';
@@ -59,7 +59,7 @@ export default async function TvPage() {
       {!feedData.spotlightTv && (
         <h1 className="sr-only">TV Shows Catalog — Netwatch</h1>
       )}
-      <TvFeed {...feedData} />
+      <TvPageClient initial={feedData} />
     </>
   );
 }

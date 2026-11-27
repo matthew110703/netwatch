@@ -10,6 +10,7 @@ import {
 import { TvFeedData } from '@/services/catalog.service';
 import { MediaCardModel } from '@/lib/types';
 import { HeroBanner } from '@/components/HeroBanner';
+import { WatchHistoryRail } from '@/components/WatchHistoryRail';
 import { GenreFilterSection } from '@/components/GenreFilterSection';
 import { strings } from '@/app/tv/strings';
 
@@ -38,6 +39,7 @@ export const TvFeed: React.FC<TvFeedData> = ({
       {/* 2. Main Content Rails */}
       <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 mt-6">
         <Stack gap={8}>
+          <WatchHistoryRail mediaType="tv" viewAllHref="/watchlist" />
           {/* Live Genre Filter */}
           <GenreFilterSection
             genres={genres}

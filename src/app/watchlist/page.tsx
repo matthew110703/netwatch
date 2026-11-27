@@ -3,14 +3,25 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bookmark, Film, Tv, Play, Trash2, Info } from 'lucide-react';
+import { Bookmark, Film, Tv, Play, Trash2, Info, History } from 'lucide-react';
 import { useWatchlist } from '@/context/WatchlistContext';
+import { useWatchHistory } from '@/hooks/useWatchHistory';
 import { MediaCardModel } from '@/lib/types';
 
 export default function WatchlistPage() {
   const router = useRouter();
   const { watchlistItems, isLoading, toggleWatchlist } = useWatchlist();
+  const {
+    items: historyItems,
+    isLoading: historyLoading,
+    removeFromHistory,
+  } = useWatchHistory({ limit: 48 });
   const [filter, setFilter] = useState<'all' | 'movie' | 'tv'>('all');
+
+  const filteredHistory = useMemo(() => {
+    if (filter === 'all') return historyItems;
+    return historyItems.filter((item) => item.type === filter);
+  }, [historyItems, filter]);
 
   const filteredItems = useMemo(() => {
     if (filter === 'all') return watchlistItems;
@@ -41,7 +52,7 @@ export default function WatchlistPage() {
             </span>
           </div>
           <p className="text-xs sm:text-sm text-[var(--rd-color-on-surface-variant)]">
-            Saved movies and series synced across your Netwatch session.
+            Watch history and saved titles for this device session.
           </p>
         </div>
 
@@ -61,7 +72,112 @@ export default function WatchlistPage() {
         </div>
       </div>
 
-      {/* Content */}
+      {/* Watch History */}
+      <section className="mt-8 space-y-4">
+        <div className="flex items-center gap-2">
+          <History className="w-5 h-5 text-[var(--rd-color-primary)]" />
+          <h2 className="text-lg font-bold">Watch History</h2>
+          <span className="text-xs font-mono text-[var(--rd-color-on-surface-variant)]">
+            ({historyItems.length})
+          </span>
+        </div>
+        {historyLoading && filteredHistory.length === 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 animate-pulse">
+            {[1, 2, 3, 4].map((n) => (
+              <div
+                key={`hist-skel-${n}`}
+                className="aspect-[2/3] rounded-xl bg-[var(--rd-color-surface-container-high)]"
+              />
+            ))}
+          </div>
+        ) : filteredHistory.length === 0 ? (
+          <p className="text-sm text-[var(--rd-color-on-surface-variant)] py-6">
+            Titles you play will show up here.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
+            {filteredHistory.map((item) => (
+              <div
+                key={`hist-${item.type}-${item.id}`}
+                className="group relative flex flex-col rounded-xl overflow-hidden bg-[var(--rd-color-surface-container)] border border-[var(--rd-color-outline-variant)]/35 hover:border-[var(--rd-color-primary)]/60 transition-all shadow-sm"
+              >
+                <div
+                  onClick={() => handleOpenPreview(item)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleOpenPreview(item);
+                    }
+                  }}
+                  className="relative aspect-[2/3] w-full overflow-hidden cursor-pointer"
+                >
+                  <img
+                    src={item.imageUrl}
+                    alt={item.title}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  {typeof item.progress === 'number' && item.progress > 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/40">
+                      <div
+                        className="h-full bg-[var(--rd-color-primary)]"
+                        style={{ width: `${item.progress}%` }}
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void removeFromHistory(item);
+                    }}
+                    aria-label={`Remove ${item.title} from history`}
+                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-3">
+                  <h3 className="font-bold text-sm line-clamp-1">{item.title}</h3>
+                  <p className="text-xs text-[var(--rd-color-on-surface-variant)] line-clamp-1">
+                    {item.episodeInfo || item.meta}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (item.type === 'tv' && item.resumeSeason && item.resumeEpisode) {
+                        router.push(
+                          `/watch/tv/${item.id}?s=${item.resumeSeason}&e=${item.resumeEpisode}`
+                        );
+                      } else {
+                        router.push(`/watch/${item.type}/${item.id}`);
+                      }
+                    }}
+                    className="mt-2 w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[var(--rd-color-primary)] text-[var(--rd-color-on-primary)] text-xs font-bold cursor-pointer"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    {item.progress && item.progress > 0 && item.progress < 95 ? 'Resume' : 'Watch'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Saved */}
+      <section className="mt-12 space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b border-[var(--rd-color-outline-variant)]/25">
+          <Bookmark className="w-5 h-5 text-[var(--rd-color-primary)]" />
+          <h2 className="text-lg font-bold">Saved</h2>
+          <span className="text-xs font-mono text-[var(--rd-color-on-surface-variant)]">
+            ({watchlistItems.length})
+          </span>
+        </div>
+      </section>
+
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-8 animate-pulse">
           {[1, 2, 3, 4, 5].map((n) => (
@@ -100,7 +216,7 @@ export default function WatchlistPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5 mt-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5 mt-4">
           {filteredItems.map((item) => (
             <div
               key={`${item.type}-${item.id}`}

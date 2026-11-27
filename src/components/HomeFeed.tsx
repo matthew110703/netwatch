@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Stack,
@@ -9,9 +9,9 @@ import {
   MediaCard,
 } from '@ripperdoc-chrome77/components';
 import { MediaCardModel, TMDBGenre } from '@/lib/types';
-import { getClientDeviceId } from '@/lib/device';
 import { useWatchlist } from '@/context/WatchlistContext';
 import { HeroBanner } from '@/components/HeroBanner';
+import { WatchHistoryRail } from '@/components/WatchHistoryRail';
 import { GenreFilterSection } from '@/components/GenreFilterSection';
 import { RegionPicker } from '@/components/RegionPicker';
 import { LanguageRailData } from '@/services/catalog.service';
@@ -52,38 +52,9 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 }) => {
   const router = useRouter();
   const { watchlistItems } = useWatchlist();
-  const [continueWatchingItems, setContinueWatchingItems] = useState<MediaCardModel[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    const deviceId = getClientDeviceId();
-
-    fetch('/api/history?continueWatching=1&limit=12', {
-      headers: { 'x-device-id': deviceId },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json: { cards?: MediaCardModel[] } | null) => {
-        if (active && json && Array.isArray(json.cards)) {
-          setContinueWatchingItems(json.cards);
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const handleCardClick = (item: MediaCardModel) => {
     window.dispatchEvent(new CustomEvent('open-netwatch-preview', { detail: item }));
-  };
-
-  const handleResumeClick = (item: MediaCardModel) => {
-    if (item.type === 'tv' && item.resumeSeason && item.resumeEpisode) {
-      router.push(`/watch/tv/${item.id}?s=${item.resumeSeason}&e=${item.resumeEpisode}`);
-    } else {
-      router.push(`/watch/${item.type}/${item.id}`);
-    }
   };
 
   return (
@@ -100,41 +71,14 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
       {/* 2. Main Catalog Sections in 1440px Container */}
       <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 mt-6">
         <Stack gap={8}>
+          <WatchHistoryRail viewAllHref="/watchlist" />
+
           {/* Quick Genre Filter */}
           <GenreFilterSection
             genres={genres}
             mediaType="all"
             onSelectCard={handleCardClick}
           />
-
-          {/* Continue Watching Rail */}
-          {continueWatchingItems.length > 0 && (
-            <MediaRail
-              title="Continue Watching"
-              subtitle="Pick up right where you left off"
-            >
-              {continueWatchingItems.map((item) => (
-                <MediaCard
-                  key={`cw-${item.type}-${item.id}`}
-                  id={item.id}
-                  title={item.title}
-                  posterUrl={item.imageUrl}
-                  backdropUrl={item.backdropUrl}
-                  subtitle={item.episodeInfo}
-                  progress={item.progress}
-                  rating={item.rating}
-                  year={item.year}
-                  variant="backdrop"
-                  href={
-                    item.type === 'tv' && item.resumeSeason && item.resumeEpisode
-                      ? `/watch/tv/${item.id}?s=${item.resumeSeason}&e=${item.resumeEpisode}`
-                      : `/watch/${item.type}/${item.id}`
-                  }
-                  onClick={() => handleResumeClick(item)}
-                />
-              ))}
-            </MediaRail>
-          )}
 
           {/* My List Rail (Live Watchlist) */}
           {watchlistItems.length > 0 && (

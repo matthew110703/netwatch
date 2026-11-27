@@ -180,6 +180,8 @@ export interface MediaCardModel {
   year?: string;
   trailerKey?: string;
   trailerUrl?: string;
+  /** ISO timestamp for watch-history ordering (client cache + merge). */
+  updatedAt?: string;
 }
 
 export interface Episode {

@@ -21,9 +21,74 @@ const WatchlistContext = createContext<WatchlistContextType>({
 });
 
 const WATCHLIST_STORAGE_KEY = 'netwatch_watchlist';
+const WATCHLIST_PENDING_KEY = 'netwatch_watchlist_pending';
+
+type PendingWatchlistOp =
+  | { action: 'add'; item: MediaCardModel }
+  | { action: 'remove'; mediaId: number; mediaType: 'movie' | 'tv' };
 
 function getItemKey(id: number, type: 'movie' | 'tv' = 'movie'): string {
   return `${type}:${id}`;
+}
+
+function readPendingOps(): PendingWatchlistOp[] {
+  try {
+    const raw = window.localStorage.getItem(WATCHLIST_PENDING_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as PendingWatchlistOp[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePendingOps(ops: PendingWatchlistOp[]): void {
+  try {
+    if (ops.length === 0) {
+      window.localStorage.removeItem(WATCHLIST_PENDING_KEY);
+    } else {
+      window.localStorage.setItem(WATCHLIST_PENDING_KEY, JSON.stringify(ops));
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+async function flushPendingWatchlistOps(deviceId: string): Promise<void> {
+  let pending = readPendingOps();
+  if (pending.length === 0) return;
+
+  const remaining: PendingWatchlistOp[] = [];
+  for (const op of pending) {
+    try {
+      if (op.action === 'add') {
+        const res = await fetch('/api/watchlist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-device-id': deviceId,
+          },
+          body: JSON.stringify({
+            mediaId: op.item.id,
+            mediaType: op.item.type,
+          }),
+        });
+        if (!res.ok) remaining.push(op);
+      } else {
+        const res = await fetch(
+          `/api/watchlist?mediaId=${op.mediaId}&mediaType=${op.mediaType}`,
+          {
+            method: 'DELETE',
+            headers: { 'x-device-id': deviceId },
+          }
+        );
+        if (!res.ok) remaining.push(op);
+      }
+    } catch {
+      remaining.push(op);
+    }
+  }
+  writePendingOps(remaining);
 }
 
 export const WatchlistProvider: React.FC<{
@@ -98,6 +163,7 @@ export const WatchlistProvider: React.FC<{
         // Ignore storage write errors
       }
       setIsLoading(false);
+      await flushPendingWatchlistOps(deviceId);
     };
 
     void hydrate();
@@ -119,7 +185,6 @@ export const WatchlistProvider: React.FC<{
       const exists = watchlistItems.some(
         (existing) => existing.id === item.id && existing.type === item.type
       );
-      const previous = watchlistItems;
       const updated = exists
         ? watchlistItems.filter(
             (existing) => !(existing.id === item.id && existing.type === item.type)
@@ -160,13 +225,18 @@ export const WatchlistProvider: React.FC<{
           throw new Error(`Watchlist sync HTTP ${res.status}`);
         }
       } catch (err) {
-        console.warn('[WatchlistContext] Sync failed, rolling back optimistic update:', err);
-        setWatchlistItems(previous);
-        try {
-          window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(previous));
-        } catch {
-          // Ignore storage write errors
+        console.warn('[WatchlistContext] Sync failed, keeping local list and queueing retry:', err);
+        const pending = readPendingOps();
+        if (exists) {
+          pending.push({
+            action: 'remove',
+            mediaId: item.id,
+            mediaType: item.type,
+          });
+        } else {
+          pending.push({ action: 'add', item });
         }
+        writePendingOps(pending);
       }
     },
     [watchlistItems]

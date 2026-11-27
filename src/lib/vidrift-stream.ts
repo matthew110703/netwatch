@@ -46,6 +46,8 @@ const ALLOWED_HLS_HOST_SUFFIXES = [
   'cdn.vidrift.net',
   'vidrift.net',
   'milkyway.cymru',
+  'hscow.com',
+  'wetki450sit.com',
 ];
 
 export function normalizeHttpsUrl(raw: string | null | undefined): string | null {

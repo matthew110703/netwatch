@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
-import { HomeFeed } from '@/components/HomeFeed';
+import { HomePageClient } from '@/components/HomePageClient';
 import { getHomeFeedData } from '@/services/catalog.service';
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/seo';
-import { resolveHomeRegion } from '@/lib/region';
+import { resolveHomeRegion } from '@/lib/region.server';
 import { strings } from './strings';
 
 export const metadata: Metadata = {
@@ -36,7 +36,7 @@ export default async function HomePage() {
       {!feedData.billboardItem && (
         <h1 className="sr-only">Netwatch — Stream Movies and TV Shows</h1>
       )}
-      <HomeFeed {...feedData} />
+      <HomePageClient initial={feedData} region={region} />
     </>
   );
 }

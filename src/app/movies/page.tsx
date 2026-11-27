@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { MoviesFeed } from '@/components/MoviesFeed';
+import { MoviesPageClient } from '@/components/MoviesPageClient';
 import { JsonLd } from '@/components/JsonLd';
 import { getMoviesFeedData } from '@/services/catalog.service';
 import { buildBreadcrumbJsonLd, buildItemListJsonLd, SITE_NAME } from '@/lib/seo';
@@ -59,7 +59,7 @@ export default async function MoviesPage() {
       {!feedData.spotlightMovie && (
         <h1 className="sr-only">Movies Catalog — Netwatch</h1>
       )}
-      <MoviesFeed {...feedData} />
+      <MoviesPageClient initial={feedData} />
     </>
   );
 }

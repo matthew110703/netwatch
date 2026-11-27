@@ -31,6 +31,7 @@ function mapHistoryItemToCard(item: HistoryItem): MediaCardModel {
     overview: typeof item.overview === 'string' ? item.overview : undefined,
     year,
     genreIds: Array.isArray(item.genre_ids) ? item.genre_ids : undefined,
+    updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : undefined,
   };
 }
 

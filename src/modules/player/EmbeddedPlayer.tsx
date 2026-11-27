@@ -18,6 +18,11 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { getClientDeviceId } from '@/lib/device';
+import { upsertHistoryCacheEntry } from '@/lib/history-cache';
+import {
+  resolveVidriftSourceInBrowser,
+  type VidriftStreamSession,
+} from '@/lib/vidrift-source.client';
 import {
   buildStreamPrefsKey,
   getStreamPrefs,
@@ -152,7 +157,6 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
   });
   const [nativeRetryToken, setNativeRetryToken] = useState(0);
   const [directMaxHeight, setDirectMaxHeight] = useState<number | null>(null);
-  const prefsHydratedKeyRef = useRef<string | null>(null);
 
   const [serverBarOpen, setServerBarOpen] = useState(false);
   const [loadedEmbedUrl, setLoadedEmbedUrl] = useState<string | null>(null);
@@ -204,16 +208,15 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
 
   const activeServer = effectiveServers.find((s) => s.id === activeServerId);
 
-  useEffect(() => {
-    if (!streamPrefsKey) return;
-    if (prefsHydratedKeyRef.current === streamPrefsKey) return;
-    prefsHydratedKeyRef.current = streamPrefsKey;
-    const prefs = getStreamPrefs(streamPrefsKey);
+  const [prevPrefsKey, setPrevPrefsKey] = useState(streamPrefsKey);
+  if (streamPrefsKey !== prevPrefsKey) {
+    setPrevPrefsKey(streamPrefsKey);
+    const prefs = streamPrefsKey ? getStreamPrefs(streamPrefsKey) : {};
     setPlaybackPrefs(prefs);
     if (prefs.serverId && effectiveServers.some((s) => s.id === prefs.serverId)) {
       setActiveServerId(prefs.serverId);
     }
-  }, [streamPrefsKey, effectiveServers]);
+  }
 
   const handlePlaybackPrefsChange = useCallback(
     (patch: Partial<StreamPlaybackPrefs>) => {
@@ -296,6 +299,23 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
       }
       lastHistorySaveRef.current = now;
 
+      const progressPct = Math.min(100, Math.max(0, (currentTime / duration) * 100));
+      const episodeInfo =
+        isTv && season != null && episode != null ? `S${season} • E${episode}` : undefined;
+
+      upsertHistoryCacheEntry({
+        id: mediaId,
+        type: mediaType,
+        title,
+        imageUrl: poster || '',
+        backdropUrl: poster,
+        progress: Math.round(progressPct),
+        resumeSeason: isTv ? season : null,
+        resumeEpisode: isTv ? episode : null,
+        episodeInfo,
+        meta: episodeInfo || (mediaType === 'tv' ? 'Series' : 'Film'),
+      });
+
       fetch(`/api/history/${mediaId}`, {
         method: 'PUT',
         headers: {
@@ -306,7 +326,7 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
           event,
           currentTime,
           duration,
-          progress: Math.min(100, Math.max(0, (currentTime / duration) * 100)),
+          progress: progressPct,
           mediaType,
           season: isTv ? season : null,
           episode: isTv ? episode : null,
@@ -314,7 +334,7 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
         keepalive: force || event !== 'timeupdate',
       }).catch(() => {});
     },
-    [mediaId, mediaType, isTv, season, episode]
+    [mediaId, mediaType, isTv, season, episode, title, poster]
   );
 
   // Dynamically resolve per-episode embed URLs when switching TV season/episode
@@ -418,7 +438,25 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
           signal: controller.signal,
         });
         const data = await res.json();
-        if (!data?.success || !data.streamUrl) {
+        if (!data?.success) {
+          throw new Error(data?.error || 'Failed to extract direct stream');
+        }
+
+        if (data.resolution === 'vidrift-session' && data.session) {
+          const session = data.session as VidriftStreamSession;
+          if (!session.parentHost && typeof window !== 'undefined') {
+            session.parentHost = window.location.hostname;
+          }
+          const resolved = await resolveVidriftSourceInBrowser(session, true);
+          applySuccess({
+            streamUrl: resolved.streamUrl,
+            subtitles: data.subtitles,
+            maxHeight: resolved.maxHeight ?? null,
+          });
+          return;
+        }
+
+        if (!data.streamUrl) {
           throw new Error(data?.error || 'Failed to extract direct stream');
         }
         applySuccess({
