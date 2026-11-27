@@ -1,5 +1,5 @@
 import { cookies, headers } from 'next/headers';
-import { DEFAULT_REGION, normalizeRegionCode, REGION_COOKIE } from '@netwatch/core/region';
+import { DEFAULT_REGION, normalizeRegionCode, REGION_COOKIE } from '@/lib/region';
 
 /**
  * Resolves the active chart region: cookie override, then geo headers, then US.

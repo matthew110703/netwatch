@@ -1,5 +1,3 @@
-import { cookies, headers } from 'next/headers';
-
 export const REGION_COOKIE = 'netwatch_region';
 export const DEFAULT_REGION = 'US';
 const REGION_CODE = /^[A-Z]{2}$/;
@@ -36,27 +34,4 @@ export function getRegionLabel(code: string): string {
 
 export function isCuratedRegionCode(code: string): code is CuratedRegionCode {
   return CURATED_REGIONS.some((r) => r.code === code);
-}
-
-/**
- * Resolves the active chart region: cookie override, then geo headers, then US.
- */
-export async function resolveHomeRegion(): Promise<string> {
-  const cookieStore = await cookies();
-  const fromCookie = normalizeRegionCode(cookieStore.get(REGION_COOKIE)?.value);
-  if (fromCookie) return fromCookie;
-
-  const hdrs = await headers();
-  const geoHeaderNames = [
-    'cf-ipcountry',
-    'x-vercel-ip-country',
-    'cloudfront-viewer-country',
-  ] as const;
-
-  for (const name of geoHeaderNames) {
-    const fromHeader = normalizeRegionCode(hdrs.get(name));
-    if (fromHeader) return fromHeader;
-  }
-
-  return DEFAULT_REGION;
 }
