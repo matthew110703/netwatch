@@ -43,7 +43,7 @@ export const FullScreenSearchModal: React.FC<FullScreenSearchModalProps> = ({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'movie' | 'tv'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'movie' | 'tv' | 'anime'>('all');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [searchState, setSearchState] = useState<{
     key: string;
@@ -99,6 +99,10 @@ export const FullScreenSearchModal: React.FC<FullScreenSearchModalProps> = ({
   // Debounced search query with cancellation
   useEffect(() => {
     if (!isOpen || !trimmedQuery) return;
+    if ((activeTab === 'anime' || activeTab === 'all') && trimmedQuery.length < 2) {
+      setSearchState({ key: searchKey, results: [], totalResults: 0 });
+      return;
+    }
 
     const controller = new AbortController();
     const timer = setTimeout(async () => {
@@ -125,7 +129,7 @@ export const FullScreenSearchModal: React.FC<FullScreenSearchModalProps> = ({
           setSearchState({ key: searchKey, results: [], totalResults: 0 });
         }
       }
-    }, 250);
+    }, 400);
 
     return () => {
       clearTimeout(timer);
@@ -147,7 +151,11 @@ export const FullScreenSearchModal: React.FC<FullScreenSearchModalProps> = ({
         e.preventDefault();
         const selected = results[activeIndex];
         handleClose();
-        onOpenPreview(selected);
+        if (selected.type === 'anime') {
+          router.push(`/anime/${selected.id}`);
+        } else {
+          onOpenPreview(selected);
+        }
       } else if (trimmedQuery) {
         e.preventDefault();
         const target = `/search?q=${encodeURIComponent(trimmedQuery)}&type=${activeTab}`;
@@ -260,6 +268,21 @@ export const FullScreenSearchModal: React.FC<FullScreenSearchModalProps> = ({
             <Tv className="w-3.5 h-3.5" />
             <span>TV Shows</span>
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('anime');
+              setHighlightedIndex(-1);
+            }}
+            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+              activeTab === 'anime'
+                ? 'bg-[var(--rd-color-primary)] text-[var(--rd-color-on-primary)] shadow-sm'
+                : 'text-[var(--rd-color-on-surface-variant)] hover:text-[var(--rd-color-on-surface)] hover:bg-[var(--rd-color-surface-container-high)]'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Anime</span>
+          </button>
 
           {trimmedQuery && results.length > 0 && !isSearching && (
             <Link
@@ -321,7 +344,11 @@ export const FullScreenSearchModal: React.FC<FullScreenSearchModalProps> = ({
                     key={`${item.type}-${item.id}`}
                     onClick={() => {
                       handleClose();
-                      onOpenPreview(item);
+                      if (item.type === 'anime') {
+                        router.push(`/anime/${item.id}`);
+                      } else {
+                        onOpenPreview(item);
+                      }
                     }}
                     className={`group relative flex flex-col rounded-lg overflow-hidden bg-[var(--rd-color-surface-container-high)] border transition-all cursor-pointer hover:shadow-xl hover:scale-[1.02] ${
                       isHighlighted

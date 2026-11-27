@@ -44,6 +44,17 @@ export async function GET(request: NextRequest) {
   const limit = Number(searchParams.get('limit')) || 20;
   const page = Number(searchParams.get('page')) || 1;
   const rawType = searchParams.get('mediaType');
+  if (rawType === 'anime') {
+    return NextResponse.json(
+      {
+        success: true,
+        data: [],
+        cards: [],
+        fallback: true,
+      },
+      { headers: NO_STORE_HEADERS }
+    );
+  }
   const mediaType = rawType === 'movie' || rawType === 'tv' ? rawType : undefined;
 
   try {

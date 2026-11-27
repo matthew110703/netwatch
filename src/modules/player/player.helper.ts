@@ -32,7 +32,7 @@ export function buildServerStreamUrl({
     brand,
     brandColor,
     font,
-    exit: '1',
+    exit: '0',
     showTitle: '1',
     uiScale: '1.0',
     controlBg: 'solid',

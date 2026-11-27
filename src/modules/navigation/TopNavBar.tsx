@@ -61,14 +61,8 @@ export const TopNavBar: React.FC = () => {
               <Link href="/tv" className={navLinkCls(pathname === '/tv')}>
                 TV Shows
               </Link>
-              <Link href="/watchlist" className={navLinkCls(pathname === '/watchlist')}>
-                <Bookmark className="w-3.5 h-3.5" />
-                <span>My List</span>
-                {mounted && count > 0 && (
-                  <span className="ml-0.5 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--rd-color-primary)] text-[var(--rd-color-on-primary)] leading-none">
-                    {count}
-                  </span>
-                )}
+              <Link href="/anime" className={navLinkCls(pathname === '/anime' || pathname?.startsWith('/anime/'))}>
+                Anime
               </Link>
             </nav>
           )}
@@ -76,6 +70,22 @@ export const TopNavBar: React.FC = () => {
 
         {/* Action Controls & Theme Toggle */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <Link
+            href="/watchlist"
+            className={`hidden sm:inline-flex items-center gap-1.5 h-10 px-3 rounded-full border border-[var(--rd-color-outline-variant)]/40 text-sm font-medium transition-colors ${
+              pathname === '/watchlist'
+                ? 'bg-[var(--rd-color-primary-container)] text-[var(--rd-color-on-primary-container)]'
+                : 'text-[var(--rd-color-on-surface-variant)] hover:text-[var(--rd-color-on-surface)] hover:bg-[var(--rd-color-surface-container-high)]'
+            }`}
+          >
+            <Bookmark className="w-4 h-4" />
+            <span>My List</span>
+            {mounted && count > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--rd-color-primary)] text-[var(--rd-color-on-primary)] leading-none">
+                {count}
+              </span>
+            )}
+          </Link>
           <button
             type="button"
             onClick={handleOpenSearch}

@@ -1,9 +1,9 @@
-import { MediaCardModel } from '@/lib/types';
+import { MediaCardModel, MediaType } from '@/lib/types';
 
 export const HISTORY_STORAGE_KEY = 'netwatch_history';
 export const MAX_HISTORY_CACHE_ITEMS = 50;
 
-function itemKey(id: number, type: 'movie' | 'tv'): string {
+function itemKey(id: number, type: MediaType): string {
   return `${type}:${id}`;
 }
 
@@ -67,7 +67,7 @@ export function mergeHistoryCards(
 
 export interface HistoryCardPatch {
   id: number;
-  type: 'movie' | 'tv';
+  type: MediaType;
   title?: string;
   imageUrl?: string;
   backdropUrl?: string;
@@ -93,7 +93,7 @@ export function upsertHistoryCacheEntry(patch: HistoryCardPatch): void {
     meta:
       patch.meta ??
       existing?.meta ??
-      (patch.type === 'tv' ? 'Series' : 'Film'),
+      (patch.type === 'tv' ? 'Series' : patch.type === 'anime' ? 'Anime' : 'Film'),
     imageUrl: patch.imageUrl ?? existing?.imageUrl ?? '',
     backdropUrl: patch.backdropUrl ?? existing?.backdropUrl,
     progress: patch.progress ?? existing?.progress,

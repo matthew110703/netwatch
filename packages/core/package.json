@@ -1,0 +1,33 @@
+{
+  "name": "@netwatch/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./catalog.constants": {
+      "types": "./src/catalog.constants.ts",
+      "default": "./src/catalog.constants.ts"
+    },
+    "./tmdb-image": {
+      "types": "./src/tmdb-image.ts",
+      "default": "./src/tmdb-image.ts"
+    },
+    "./region": {
+      "types": "./src/region.ts",
+      "default": "./src/region.ts"
+    }
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

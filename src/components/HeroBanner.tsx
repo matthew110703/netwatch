@@ -21,6 +21,21 @@ interface HeroBannerProps {
 }
 
 const DESKTOP_AUTOPLAY_QUERY = '(min-width: 768px) and (prefers-reduced-motion: no-preference)';
+const PREVIEW_MUTED_KEY = 'netwatch_preview_muted';
+const MAX_TRAILER_LOOPS = 3;
+const YT_PLAYER_STATE_ENDED = 0;
+
+function readStoredPreviewMuted(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = window.localStorage.getItem(PREVIEW_MUTED_KEY);
+    if (raw === '1') return true;
+    if (raw === '0') return false;
+  } catch {
+    // ignore
+  }
+  return false;
+}
 
 function subscribeAutoplayMedia(cb: () => void): () => void {
   if (typeof window === 'undefined' || !window.matchMedia) return () => {};
@@ -41,7 +56,9 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 }) => {
   const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isMuted, setIsMuted] = useState(true);
+  const loopCountRef = useRef(0);
+  const wasPlayingBeforeHideRef = useRef(false);
+  const [isMuted, setIsMuted] = useState(() => readStoredPreviewMuted());
   const [loadedTrailerItemId, setLoadedTrailerItemId] = useState<number | null>(null);
   const { isSaved, toggleWatchlist } = useWatchlist();
 
@@ -50,6 +67,8 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
     getAutoplaySnapshot,
     () => false
   );
+
+  const showIframeTrailer = Boolean(item?.trailerKey && canAutoplayTrailer);
 
   // Pause banner YouTube trailer when detail preview / search modal is open; resume when closed
   useEffect(() => {
@@ -88,26 +107,83 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
     };
   }, []);
 
+  const postPlayerCommand = (func: string, args: unknown[] = []) => {
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: 'command', func, args }),
+      '*'
+    );
+  };
+
+  useEffect(() => {
+    loopCountRef.current = 0;
+  }, [item?.id, item?.trailerKey]);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (!iframeRef.current || event.source !== iframeRef.current.contentWindow) return;
+      let data: unknown = event.data;
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch {
+          return;
+        }
+      }
+      if (!data || typeof data !== 'object') return;
+      const payload = data as { event?: string; info?: number };
+      if (payload.event === 'onStateChange' && payload.info === YT_PLAYER_STATE_ENDED) {
+        loopCountRef.current += 1;
+        if (loopCountRef.current < MAX_TRAILER_LOOPS) {
+          postPlayerCommand('seekTo', [0, true]);
+          postPlayerCommand('playVideo');
+        } else {
+          postPlayerCommand('pauseVideo');
+        }
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        wasPlayingBeforeHideRef.current = loopCountRef.current < MAX_TRAILER_LOOPS;
+        postPlayerCommand('pauseVideo');
+        return;
+      }
+      if (wasPlayingBeforeHideRef.current && loopCountRef.current < MAX_TRAILER_LOOPS) {
+        postPlayerCommand('playVideo');
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (!showIframeTrailer || !item?.trailerKey || isMuted) return;
+    const timer = setTimeout(() => {
+      postPlayerCommand('unMute');
+      postPlayerCommand('setVolume', [70]);
+    }, 1600);
+    return () => clearTimeout(timer);
+  }, [showIframeTrailer, item?.trailerKey, isMuted, loadedTrailerItemId]);
+
   if (!item) return null;
 
   const saved = isSaved(item.id, item.type);
-  const showIframeTrailer = Boolean(item.trailerKey && canAutoplayTrailer);
   const isVideoLoaded = showIframeTrailer && loadedTrailerItemId === item.id;
 
   const toggleAudio = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
-
-    if (iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({
-          event: 'command',
-          func: nextMuted ? 'mute' : 'unMute',
-          args: [],
-        }),
-        '*'
-      );
+    try {
+      window.localStorage.setItem(PREVIEW_MUTED_KEY, nextMuted ? '1' : '0');
+    } catch {
+      // ignore
     }
+    postPlayerCommand(nextMuted ? 'mute' : 'unMute');
+    if (!nextMuted) postPlayerCommand('setVolume', [70]);
   };
 
   return (
@@ -118,7 +194,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           <div className="relative w-full h-full pointer-events-none overflow-hidden">
             <iframe
               ref={iframeRef}
-              src={`https://www.youtube-nocookie.com/embed/${item.trailerKey}?autoplay=1&mute=1&controls=0&loop=1&playlist=${item.trailerKey}&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3&fs=0&disablekb=1&showinfo=0&autohide=1`}
+              src={`https://www.youtube-nocookie.com/embed/${item.trailerKey}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3&fs=0&disablekb=1&showinfo=0&autohide=1&origin=${typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : ''}`}
               title={item.title}
               allow="autoplay; encrypted-media"
               onLoad={() => {
@@ -201,7 +277,13 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
               variant="white"
               size="lg"
               leadingIcon={<Play className="w-5 h-5 fill-current" />}
-              onClick={() => router.push(`/watch/${item.type}/${item.id}`)}
+              onClick={() =>
+                router.push(
+                  item.type === 'anime'
+                    ? `/watch/anime/${item.id}/1`
+                    : `/watch/${item.type}/${item.id}`
+                )
+              }
               className="font-bold px-5 sm:px-6 h-11 sm:h-12 text-sm sm:text-base shadow-xl hover:scale-[1.02]"
             >
               {strings.hero.play}
@@ -217,7 +299,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             </button>
 
             <Link
-              href={`/${item.type}/${item.id}`}
+              href={item.type === 'anime' ? `/anime/${item.id}` : `/${item.type}/${item.id}`}
               className="inline-flex items-center gap-2 h-11 sm:h-12 px-4 rounded-lg bg-black/65 hover:bg-black/85 backdrop-blur-md text-white border border-white/25 font-semibold text-sm transition-all duration-150 shadow-md"
             >
               <span>Details</span>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { getClientDeviceId } from '@/lib/device';
 import { upsertHistoryCacheEntry } from '@/lib/history-cache';
 import { VIDRIFT_ORIGIN } from '@/lib/vidrift-stream';
@@ -239,17 +239,6 @@ export const EmbeddedPlayer: React.FC<EmbeddedPlayerProps> = ({
 
   return (
     <div className="w-full flex flex-col gap-2.5">
-      {onExit && (
-        <button
-          type="button"
-          onClick={onExit}
-          className="self-start inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 rounded-lg bg-[var(--rd-color-surface-container-high)]/70 hover:bg-[var(--rd-color-surface-container-high)] text-[var(--rd-color-on-surface)] border border-[var(--rd-color-outline-variant)]/40 text-xs sm:text-sm font-medium transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Details</span>
-        </button>
-      )}
-
       <div className="relative w-full aspect-video bg-black overflow-hidden rounded-lg sm:rounded-xl border border-[var(--rd-color-outline-variant)]/30">
         {!frame.loaded && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-black pointer-events-none">

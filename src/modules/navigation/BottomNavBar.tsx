@@ -3,13 +3,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Film, Tv, Bookmark, Search } from 'lucide-react';
-import { useWatchlist } from '@/context/WatchlistContext';
-
+import { Home, Film, Tv, Sparkles, Search } from 'lucide-react';
 export const BottomNavBar: React.FC = () => {
   const pathname = usePathname();
-  const { count } = useWatchlist();
-
   if (pathname === '/watch' || pathname?.startsWith('/watch/')) {
     return null;
   }
@@ -23,7 +19,7 @@ export const BottomNavBar: React.FC = () => {
     { label: 'Home', href: '/', icon: Home, isSearch: false },
     { label: 'Movies', href: '/movies', icon: Film, isSearch: false },
     { label: 'TV', href: '/tv', icon: Tv, isSearch: false },
-    { label: 'My List', href: '/watchlist', icon: Bookmark, isSearch: false, badge: count },
+    { label: 'Anime', href: '/anime', icon: Sparkles, isSearch: false },
     { label: 'Search', href: '/search', icon: Search, isSearch: true },
   ];
 
@@ -49,11 +45,6 @@ export const BottomNavBar: React.FC = () => {
           >
             <div className="relative">
               <Icon className="w-5 h-5" />
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-[var(--rd-color-primary)] text-[var(--rd-color-on-primary)] text-[9px] font-bold flex items-center justify-center leading-none">
-                  {item.badge > 99 ? '99+' : item.badge}
-                </span>
-              )}
             </div>
             <span className="text-[11px] leading-tight">{item.label}</span>
           </Link>

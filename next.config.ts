@@ -3,6 +3,7 @@ import type { NextConfig } from 'next';
 const isProduction = process.env.NODE_ENV === 'production';
 
 const nextConfig: NextConfig = {
+  transpilePackages: ['@netwatch/core'],
   poweredByHeader: false,
   compress: true,
   images: {
@@ -19,6 +20,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 's4.anilist.co',
       },
     ],
   },
@@ -50,7 +55,7 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Security-Policy',
             value:
-              "frame-src 'self' https:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self';",
+              "frame-src 'self' https://www.youtube-nocookie.com https://embed.vidrift.net https://animeembed.com https://anisrc.ru https://aniembed.se; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self';",
           },
           ...(isProduction
             ? [

@@ -1,13 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { MediaCardModel } from '@/lib/types';
+import { MediaCardModel, MediaType } from '@/lib/types';
 import { getClientDeviceId } from '@/lib/device';
 
 interface WatchlistContextType {
   watchlistItems: MediaCardModel[];
   isLoading: boolean;
-  isSaved: (id: number, type?: 'movie' | 'tv') => boolean;
+  isSaved: (id: number, type?: MediaType) => boolean;
   toggleWatchlist: (item: MediaCardModel) => Promise<void>;
   count: number;
 }
@@ -27,7 +27,7 @@ type PendingWatchlistOp =
   | { action: 'add'; item: MediaCardModel }
   | { action: 'remove'; mediaId: number; mediaType: 'movie' | 'tv' };
 
-function getItemKey(id: number, type: 'movie' | 'tv' = 'movie'): string {
+function getItemKey(id: number, type: MediaType = 'movie'): string {
   return `${type}:${id}`;
 }
 
@@ -173,7 +173,7 @@ export const WatchlistProvider: React.FC<{
   }, []);
 
   const isSaved = useCallback(
-    (id: number, type?: 'movie' | 'tv') =>
+    (id: number, type?: MediaType) =>
       watchlistItems.some((item) =>
         type ? item.id === id && item.type === type : item.id === id
       ),
@@ -196,6 +196,10 @@ export const WatchlistProvider: React.FC<{
         window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(updated));
       } catch {
         // Ignore storage write errors
+      }
+
+      if (item.type === 'anime') {
+        return;
       }
 
       const deviceId = getClientDeviceId();
@@ -231,7 +235,7 @@ export const WatchlistProvider: React.FC<{
           pending.push({
             action: 'remove',
             mediaId: item.id,
-            mediaType: item.type,
+            mediaType: item.type === 'tv' ? 'tv' : 'movie',
           });
         } else {
           pending.push({ action: 'add', item });

@@ -7,7 +7,7 @@ import { useWatchHistory } from '@/hooks/useWatchHistory';
 import { MediaCardModel } from '@/lib/types';
 
 interface WatchHistoryRailProps {
-  mediaType?: 'movie' | 'tv';
+  mediaType?: 'movie' | 'tv' | 'anime';
   title?: string;
   subtitle?: string;
   viewAllHref?: string;
@@ -27,6 +27,11 @@ export const WatchHistoryRail: React.FC<WatchHistoryRailProps> = ({
   }
 
   const handleResumeClick = (item: MediaCardModel) => {
+    if (item.type === 'anime') {
+      const ep = item.resumeEpisode ?? 1;
+      router.push(`/watch/anime/${item.id}/${ep}`);
+      return;
+    }
     if (item.type === 'tv' && item.resumeSeason && item.resumeEpisode) {
       router.push(`/watch/tv/${item.id}?s=${item.resumeSeason}&e=${item.resumeEpisode}`);
     } else {

@@ -58,6 +58,13 @@ export function CatalogColdStart<T>({
   const polledRef = useRef(false);
 
   useEffect(() => {
+    setData(initial);
+    if (hasContent(initial)) {
+      setWarming(false);
+    }
+  }, [initial, hasContent]);
+
+  useEffect(() => {
     if (hasContent(initial)) {
       setWarming(false);
       return;

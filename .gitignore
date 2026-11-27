@@ -44,3 +44,10 @@ next-env.d.ts
 # yalc
 .yalc
 yalc.lock
+
+# expo / native
+apps/native/.expo/
+apps/native/dist/
+apps/native/android/
+apps/native/ios/
+.expo/

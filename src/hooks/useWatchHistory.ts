@@ -11,7 +11,7 @@ import { MediaCardModel } from '@/lib/types';
 
 interface UseWatchHistoryOptions {
   limit?: number;
-  mediaType?: 'movie' | 'tv';
+  mediaType?: 'movie' | 'tv' | 'anime';
   /** When true, uses continue-watching filter (1–95% progress, not ended). */
   continueWatchingOnly?: boolean;
 }

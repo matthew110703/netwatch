@@ -3,6 +3,7 @@ import {
   MoviesFeedData,
   TvFeedData,
 } from '@/services/catalog.service';
+import type { AnimeFeedData } from '@/services/anime-catalog.service';
 
 export function homeFeedHasContent(data: HomeFeedData): boolean {
   return (
@@ -24,4 +25,14 @@ export function moviesFeedHasContent(data: MoviesFeedData): boolean {
 
 export function tvFeedHasContent(data: TvFeedData): boolean {
   return data.popularTv.length > 0 || data.topRatedTv.length > 0 || data.onTheAirTv.length > 0;
+}
+
+export function animeFeedHasContent(data: AnimeFeedData): boolean {
+  return (
+    data.trending.length > 0 ||
+    data.popular.length > 0 ||
+    data.topScored.length > 0 ||
+    data.thisSeason.length > 0 ||
+    data.airing.length > 0
+  );
 }

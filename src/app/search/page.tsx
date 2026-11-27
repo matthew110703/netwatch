@@ -14,11 +14,12 @@ import {
   Tv,
   Loader2,
   Info,
+  Sparkles,
 } from 'lucide-react';
 import { MediaCardModel } from '@/lib/types';
 import { useWatchlist } from '@/context/WatchlistContext';
 
-type SearchCategory = 'all' | 'movie' | 'tv';
+type SearchCategory = 'all' | 'movie' | 'tv' | 'anime';
 
 interface SearchResultState {
   key: string;
@@ -29,7 +30,7 @@ interface SearchResultState {
 }
 
 function parseCategory(raw: string | null): SearchCategory {
-  if (raw === 'movie' || raw === 'tv') return raw;
+  if (raw === 'movie' || raw === 'tv' || raw === 'anime') return raw;
   return 'all';
 }
 
@@ -81,6 +82,17 @@ function SearchPageContent() {
       return () => clearTimeout(clearTimer);
     }
 
+    if ((activeCategory === 'anime' || activeCategory === 'all') && trimmedQuery.length < 2) {
+      setSearchState({
+        key: searchKey,
+        results: [],
+        page: 1,
+        totalPages: 1,
+        totalResults: 0,
+      });
+      return;
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       if (trimmedQuery !== currentUrlQ || activeCategory !== currentUrlType) {
@@ -125,7 +137,7 @@ function SearchPageContent() {
           });
         }
       }
-    }, 250);
+    }, 400);
 
     return () => {
       clearTimeout(timer);
@@ -251,6 +263,18 @@ function SearchPageContent() {
             <Tv className="w-4 h-4" />
             <span>TV Shows</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveCategory('anime')}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              activeCategory === 'anime'
+                ? 'bg-[var(--rd-color-primary)] text-[var(--rd-color-on-primary)] shadow-sm'
+                : 'bg-[var(--rd-color-surface-container-high)] text-[var(--rd-color-on-surface-variant)] hover:text-[var(--rd-color-on-surface)]'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Anime</span>
+          </button>
 
           {isSearching && (
             <div className="flex items-center gap-2 ml-auto text-[var(--rd-color-primary)] text-xs font-mono">
@@ -278,10 +302,17 @@ function SearchPageContent() {
                   ? `${Math.min(99, Math.max(50, Math.round(item.rating * 10)))}% MATCH`
                   : item.type.toUpperCase());
 
+              const detailHref =
+                item.type === 'anime' ? `/anime/${item.id}` : `/${item.type}/${item.id}`;
+              const watchHref =
+                item.type === 'anime'
+                  ? `/watch/anime/${item.id}/1`
+                  : `/watch/${item.type}/${item.id}`;
+
               return (
                 <div
                   key={`${item.type}-${item.id}`}
-                  onClick={() => router.push(`/${item.type}/${item.id}`)}
+                  onClick={() => router.push(detailHref)}
                   className="group relative flex flex-row gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-[var(--rd-color-surface-container-high)] border border-[var(--rd-color-outline-variant)]/35 hover:border-[var(--rd-color-primary)]/50 transition-all cursor-pointer shadow-md hover:shadow-xl"
                 >
                   <div className="w-24 sm:w-32 aspect-[2/3] rounded-xl overflow-hidden shrink-0 bg-[var(--rd-color-surface-container-highest)] relative">
@@ -319,7 +350,7 @@ function SearchPageContent() {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          router.push(`/watch/${item.type}/${item.id}`);
+                          router.push(watchHref);
                         }}
                         className="px-3.5 py-2 rounded-lg bg-[var(--rd-color-primary)] text-[var(--rd-color-on-primary)] font-semibold text-xs inline-flex items-center gap-1.5 hover:opacity-90 transition-all cursor-pointer"
                       >
@@ -328,7 +359,7 @@ function SearchPageContent() {
                       </button>
 
                       <Link
-                        href={`/${item.type}/${item.id}`}
+                        href={detailHref}
                         onClick={(e) => e.stopPropagation()}
                         className="px-3 py-2 rounded-lg bg-[var(--rd-color-surface-container-low)] text-[var(--rd-color-on-surface)] border border-[var(--rd-color-outline-variant)]/40 hover:bg-[var(--rd-color-surface-container-highest)] font-semibold text-xs inline-flex items-center gap-1 transition-all"
                       >
@@ -373,7 +404,7 @@ function SearchPageContent() {
             {remainingMatches.map((item) => (
               <Link
                 key={`${item.type}-${item.id}`}
-                href={`/${item.type}/${item.id}`}
+                href={item.type === 'anime' ? `/anime/${item.id}` : `/${item.type}/${item.id}`}
                 className="group relative rounded-xl overflow-hidden aspect-[2/3] bg-[var(--rd-color-surface-container-high)] border border-[var(--rd-color-outline-variant)]/30 hover:border-[var(--rd-color-primary)]/50 transition-all shadow-md hover:scale-[1.03]"
               >
                 {item.imageUrl ? (

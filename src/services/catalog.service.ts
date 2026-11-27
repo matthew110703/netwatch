@@ -328,40 +328,62 @@ export interface TvFeedData {
   genres: TMDBGenre[];
 }
 
+function mapTvResults(results: unknown): MediaCardModel[] {
+  if (!Array.isArray(results)) return [];
+  return results.reduce<MediaCardModel[]>((acc, t) => {
+    try {
+      acc.push(mapTmdbTvToCard(t as Parameters<typeof mapTmdbTvToCard>[0]));
+    } catch (err) {
+      console.warn('[Catalog Service] Skipped TV card mapping:', err);
+    }
+    return acc;
+  }, []).slice(0, 12);
+}
+
 export async function getTvFeedData(): Promise<TvFeedData> {
+  const [popularRes, topRatedRes, onTheAirRes, genresRes] = await Promise.allSettled([
+    tvApi.getPopular(),
+    tvApi.getTopRated(),
+    tvApi.getOnTheAir(),
+    genresApi.getTvGenres(),
+  ]);
+
+  if (popularRes.status === 'rejected') {
+    console.error('[Catalog Service] TV popular rail failed:', popularRes.reason);
+  }
+  if (topRatedRes.status === 'rejected') {
+    console.error('[Catalog Service] TV top-rated rail failed:', topRatedRes.reason);
+  }
+  if (onTheAirRes.status === 'rejected') {
+    console.error('[Catalog Service] TV on-the-air rail failed:', onTheAirRes.reason);
+  }
+
+  const popularTv: MediaCardModel[] =
+    popularRes.status === 'fulfilled' && popularRes.value.results
+      ? mapTvResults(popularRes.value.results)
+      : [];
+
+  const topRatedTv: MediaCardModel[] =
+    topRatedRes.status === 'fulfilled' && topRatedRes.value.results
+      ? mapTvResults(topRatedRes.value.results)
+      : [];
+
+  const onTheAirTv: MediaCardModel[] =
+    onTheAirRes.status === 'fulfilled' && onTheAirRes.value.results
+      ? mapTvResults(onTheAirRes.value.results)
+      : [];
+
+  const genres: TMDBGenre[] =
+    genresRes.status === 'fulfilled' && Array.isArray(genresRes.value)
+      ? [{ id: 0, name: 'All Genres' }, ...genresRes.value.slice(0, 10)]
+      : [{ id: 0, name: 'All Genres' }];
+
+  let spotlightTv: MediaCardModel | null = null;
   try {
-    const [popularRes, topRatedRes, onTheAirRes, genresRes] = await Promise.allSettled([
-      tvApi.getPopular(),
-      tvApi.getTopRated(),
-      tvApi.getOnTheAir(),
-      genresApi.getTvGenres(),
-    ]);
-
-    const popularTv: MediaCardModel[] =
-      popularRes.status === 'fulfilled' && popularRes.value.results
-        ? popularRes.value.results.slice(0, 12).map((t) => mapTmdbTvToCard(t))
-        : [];
-
-    const topRatedTv: MediaCardModel[] =
-      topRatedRes.status === 'fulfilled' && topRatedRes.value.results
-        ? topRatedRes.value.results.slice(0, 12).map((t) => mapTmdbTvToCard(t))
-        : [];
-
-    const onTheAirTv: MediaCardModel[] =
-      onTheAirRes.status === 'fulfilled' && onTheAirRes.value.results
-        ? onTheAirRes.value.results.slice(0, 12).map((t) => mapTmdbTvToCard(t))
-        : [];
-
-    const genres: TMDBGenre[] =
-      genresRes.status === 'fulfilled' && Array.isArray(genresRes.value)
-        ? [{ id: 0, name: 'All Genres' }, ...genresRes.value.slice(0, 10)]
-        : [{ id: 0, name: 'All Genres' }];
-
     const trailerHit = await resolveFirstTrailer(popularTv, (id) =>
       tvApi.getTvDetails(id, { append_to_response: 'videos' })
     );
 
-    let spotlightTv: MediaCardModel | null = null;
     if (trailerHit) {
       spotlightTv = {
         ...trailerHit.candidate,
@@ -379,22 +401,23 @@ export async function getTvFeedData(): Promise<TvFeedData> {
         };
       }
     }
-
-    return {
-      spotlightTv,
-      popularTv,
-      topRatedTv,
-      onTheAirTv,
-      genres,
-    };
   } catch (error) {
-    console.error('[Catalog Service] Error loading TV feed:', error);
-    return {
-      spotlightTv: null,
-      popularTv: [],
-      topRatedTv: [],
-      onTheAirTv: [],
-      genres: [{ id: 0, name: 'All Genres' }],
-    };
+    console.warn('[Catalog Service] TV spotlight trailer skipped:', error);
+    const fallbackTv = popularTv.find((t) => t.backdropUrl) || popularTv[0] || null;
+    if (fallbackTv) {
+      spotlightTv = {
+        ...fallbackTv,
+        format: 'DOLBY VISION • 4K',
+        badge: 'TRENDING SERIES',
+      };
+    }
   }
+
+  return {
+    spotlightTv,
+    popularTv,
+    topRatedTv,
+    onTheAirTv,
+    genres,
+  };
 }

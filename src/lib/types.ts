@@ -159,9 +159,11 @@ export interface TMDBTvDetails extends TMDBTvShow {
   };
 }
 
+export type MediaType = 'movie' | 'tv' | 'anime';
+
 export interface MediaCardModel {
   id: number;
-  type: 'movie' | 'tv';
+  type: MediaType;
   title: string;
   meta: string;
   badge?: string;
@@ -182,6 +184,8 @@ export interface MediaCardModel {
   trailerUrl?: string;
   /** ISO timestamp for watch-history ordering (client cache + merge). */
   updatedAt?: string;
+  /** Genre labels when the source is not TMDB (anime). */
+  genres?: string[];
 }
 
 export interface Episode {
