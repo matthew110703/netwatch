@@ -7,9 +7,7 @@ import { MediaInfoPanel } from '@/modules/media-detail/MediaInfoPanel';
 import { CastSection } from '@/modules/media-detail/CastSection';
 import { SeasonEpisodePicker } from '@/modules/media-detail/SeasonEpisodePicker';
 import { MediaRail, MediaCard } from '@ripperdoc-chrome77/components';
-import { PlayerEpisode } from '@ripperdoc-chrome77/player';
 import { MediaItem, Episode, CastMember, MediaCardModel, TMDBTvSeasonSummary } from '@/lib/types';
-import { getTmdbImageUrl } from '@/lib/tmdb-image';
 
 export interface WatchViewContainerProps {
   initialItem: MediaItem;
@@ -20,22 +18,6 @@ export interface WatchViewContainerProps {
   cast?: CastMember[];
   episodes?: Episode[];
   recommendations?: MediaCardModel[];
-}
-
-function mapEpisodesForPlayer(episodes: Episode[], fallbackSeason: number): PlayerEpisode[] {
-  return episodes.map((ep) => ({
-    id: ep.id,
-    seasonNumber: ep.season_number ?? fallbackSeason,
-    episodeNumber: ep.episode_number,
-    title: ep.name,
-    overview: ep.overview,
-    stillPath:
-      ep.stillUrl ||
-      (ep.still_path ? getTmdbImageUrl(ep.still_path, 'w500') : undefined) ||
-      undefined,
-    durationMinutes: ep.runtime,
-    airDate: ep.air_date,
-  }));
 }
 
 export const WatchViewContainer: React.FC<WatchViewContainerProps> = ({
@@ -194,38 +176,10 @@ export const WatchViewContainer: React.FC<WatchViewContainerProps> = ({
         season={season}
         episode={episode}
         title={initialItem.title || initialItem.name}
-        overview={initialItem.overview}
         poster={initialItem.backdropUrl || initialItem.posterUrl}
         onExit={() => router.replace(detailPath)}
         onEnded={handleMediaEnded}
-        servers={
-          initialItem.servers && initialItem.servers.length > 0
-            ? initialItem.servers.map((s) => ({
-                id: s.id,
-                name: s.name,
-                quality: s.quality,
-                isRecommended: s.isRecommended,
-                embedUrl: s.embedUrl,
-              }))
-            : undefined
-        }
-        qualityBadge={
-          initialItem.servers?.find((s) => s.isRecommended)?.quality ||
-          initialItem.servers?.[0]?.quality
-        }
-        seasons={
-          positiveSeasons.length > 0
-            ? positiveSeasons.map((s) => ({
-                seasonNumber: s.season_number,
-                name: s.name,
-                episodeCount: s.episode_count,
-              }))
-            : undefined
-        }
-        episodes={mapEpisodesForPlayer(episodeList, season)}
-        episodesLoading={episodesLoading}
         onSelectEpisode={handleSelectEpisode}
-        onSeasonChange={handleSeasonChange}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -22,7 +22,7 @@ export function buildServerStreamUrl({
   brandColor = '#b0c6ff',
   font = 'Inter',
 }: BuildServerUrlOptions): string {
-  // Embed relay URL — VidRift gates playback on popup/ad capability
+  // Documented embed parameters: https://vidrift.net/docs#params
   const basePath =
     type === 'tv'
       ? `https://embed.vidrift.net/embed/tv/${id}/${season}/${episode}`
@@ -36,7 +36,6 @@ export function buildServerStreamUrl({
     showTitle: '1',
     uiScale: '1.0',
     controlBg: 'solid',
-    mobileSheets: 'true',
   });
 
   return `${basePath}?${params.toString()}`;
